@@ -7,8 +7,16 @@ Why Docker: Zivid dropped One+ support after **SDK 2.11** (2.12+ cannot see the 
 and the current `zivid-ros` need **SDK ≥ 2.15**. apt allows only one Zivid SDK version per machine and conda cannot
 isolate system libraries, so the One+ SDK lives only inside Docker images. The host keeps its newer SDK untouched.
 
-**Current calibration result:** [`calib/results/RESULT.md`](calib/results/RESULT.md)
-(`T_base_camera`, mean error ~0.3–0.6 mm on new poses).
+**Latest calibration (2026-11-18):** [`calib/results/handEyeTransform_oneplus_2026-11-18.yaml`](calib/results/handEyeTransform_oneplus_2026-11-18.yaml),
+summary in [`calib/results/RESULT.md`](calib/results/RESULT.md) (`T_base_camera`, 0.3–0.55 mm mean error on new poses).
+
+**Quick start** (Docker + NVIDIA Container Toolkit installed, details in section 1):
+```bash
+sudo ./host/setup_host.sh      # once: USB permissions (then log out/in, replug camera)
+./build.sh                     # once: create the Docker images
+./run.sh ZividListCameras      # camera found?
+./run.sh ZividStudio           # live view
+```
 
 ---
 
@@ -17,6 +25,7 @@ isolate system libraries, so the One+ SDK lives only inside Docker images. The h
 ```
 .
 ├── Dockerfile                 image zivid-oneplus:2.11.1  (SDK 2.11.1, Teli USB driver, Zivid Studio, tools)
+├── build.sh                   ONE command: download packages + build both images
 ├── download_packages.sh       downloads the 4 Zivid .deb packages (not in git)
 ├── run.sh                     start Studio / tools in the container (USB + GPU + your home folder)
 ├── export_images.sh           save both images to one .tar.gz for offline transfer
@@ -44,76 +53,120 @@ isolate system libraries, so the One+ SDK lives only inside Docker images. The h
 
 ## 1. Set up a computer (once)
 
-Requirements: Ubuntu 22.04 (other recent Linux should work), NVIDIA GPU + driver (the Zivid SDK needs OpenCL),
-Docker, NVIDIA Container Toolkit, internet for the first build. Tested on a ThinkPad P1 Gen 6 (RTX 4090 Laptop GPU,
-driver 550), Docker with the `nvidia` runtime.
+Requirements: Ubuntu 22.04 (other recent Linux should work), an NVIDIA GPU with its driver (the Zivid SDK needs
+OpenCL), internet for the first build. Tested on a ThinkPad P1 Gen 6 (RTX 4090 Laptop GPU, driver 550).
+
+**Step 1: Docker and the NVIDIA Container Toolkit** (skip what is already installed)
+- Docker: https://docs.docker.com/engine/install/ubuntu/
+- NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 
 ```bash
-# Docker + NVIDIA Container Toolkit (skip what is already installed)
-#   https://docs.docker.com/engine/install/ubuntu/
-#   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-sudo usermod -aG docker $USER
+sudo usermod -aG docker $USER      # then log out and back in
+docker info | grep -i runtimes     # must list "nvidia"
+```
 
+**Step 2: get this repository and prepare the host**
+```bash
 git clone <this repo> zivid-oneplus && cd zivid-oneplus
-sudo ./host/setup_host.sh          # USB permissions + dialout group, then log out/in and replug the camera
+sudo ./host/setup_host.sh          # USB permissions + dialout group
 ```
+Log out and back in, then unplug and replug the camera.
 
-Get the images, **either** build them (needs internet, ~10 min):
+**Step 3: create the Docker images**, one command (downloads the Zivid packages, builds both images, ~10–15 min):
 ```bash
-./download_packages.sh                                  # Zivid 2.11.1 .deb files
-docker build -t zivid-oneplus:2.11.1 .
-docker build -t zivid-oneplus-calib:2.11.1 calib/
+./build.sh
 ```
-**or** load the exported file (no internet needed):
-```bash
-gunzip -c zivid-oneplus-images.tar.gz | docker load
-```
+No internet? Load the exported images instead: `gunzip -c zivid-oneplus-images.tar.gz | docker load`
 
-Check:
+**Step 4: check**
 ```bash
 ./run.sh ZividListCameras          # -> Found 1 camera(s) ... zividOnePlusMedium
 ```
 
-## 2. Use the camera
+## 2. Bring up the Docker / use the camera
 
-```bash
-./run.sh ZividStudio               # GUI (Live view, capture, export settings)
-./run.sh                           # shell inside the container
-```
-- Your home folder is shared at the same path: anything saved under `/home/<you>/...` ends up on the computer.
-  Default folder: `~/zivid_oneplus_data`. Do **not** save to `/root`, `/home` or system folders: lost on exit.
-- **Only one program can use the camera at a time.** Close Studio before running any calibration script.
-- The camera connects over **USB 3** (not Ethernet). `lsusb` must show `Zivid One Plus M`, `DLPC350`, `BU238MC`.
+There is nothing to start in the background. Each command below starts a container, runs, and removes the
+container when it exits. Plug the camera into a **USB 3** port first.
+
+| I want to … | Command |
+|---|---|
+| check the camera is found | `./run.sh ZividListCameras` |
+| open Zivid Studio (live view, capture, save settings) | `./run.sh ZividStudio` |
+| get a shell with the Zivid tools | `./run.sh` |
+| run a calibration / Python script | `cd calib && ./calib.sh python3 <script.py> ...` |
+| get a shell with Python + zivid | `cd calib && ./calib.sh` |
+
+- **Only one program can use the camera at a time.** Close Studio before running any script (otherwise
+  "No camera(s) found").
+- Your home folder is shared with the container at the same path: anything saved under `/home/<you>/...`
+  is on the computer. Studio starts in `~/zivid_oneplus_data`. Files saved elsewhere (`/root`, `/home`, `/tmp`)
+  are lost when the container exits.
+- `calib.sh` mounts the `calib/` folder as `/work`: datasets and results appear directly in `calib/`, and script
+  edits take effect without rebuilding.
+- `lsusb` on the host must show `Zivid One Plus M`, `DLPC350` and `BU238MC`.
 
 ## 3. Hand-eye calibration (UR robot, eye-to-hand)
 
-Camera fixed, **Zivid calibration board ZVD-CB01 (7×8, 30 mm)** rigidly mounted on the robot flange.
-(Pickit plates / custom printed boards are not detected.)
+**Latest calibration (2026-11-18):** [`calib/results/handEyeTransform_oneplus_2026-11-18.yaml`](calib/results/handEyeTransform_oneplus_2026-11-18.yaml)
+(`T_base_camera`, in mm). It was verified at 0.3–0.55 mm mean error on new robot poses; details in
+[`calib/results/RESULT.md`](calib/results/RESULT.md). It comes from dataset `calib/datasets/2026-11-18_15-44-14`.
+**Redo the calibration only if the camera or the robot base has moved.**
 
-**Network:** the robot here is `192.168.163.11`. Give the laptop's wired adapter an address in the same subnet,
-e.g. `192.168.163.100/24` (on the lab laptop it is an extra address on NetworkManager profile "Profile 1").
-Check: `ping 192.168.163.11`.
+### 3.1 Prepare
+1. **Board:** Zivid calibration board **ZVD-CB01 (7×8, 30 mm)**, rigidly mounted on the robot flange. The camera
+   stays fixed. (Pickit plates and self-printed boards are not detected.)
+2. **Network:** the robot is `192.168.163.11`. Give the computer's wired adapter an address in the same subnet,
+   e.g. `192.168.163.100/24` (Settings → Network → wired → IPv4 → Manual). Check: `ping 192.168.163.11`.
+3. **Camera settings:** `calib/settings/oneplus_3d.yml`. If the light changed, make new ones in Studio
+   (the white squares must not be over-exposed) and save them there.
+4. **Robot program:** on the pendant load `universal_robots_robot_motion_script.urp` (from `calib/`) and teach
+   **10–15 waypoints**: whole board visible, nothing (wrist, cables) covering it, different tilts (±10–25°)
+   and distances. Use MoveJ and check the paths are free.
 
-**Robot:** load `calib/universal_robots_robot_motion_script.urp`, teach 10–15 waypoints: whole board visible,
-nothing (wrist, cables) over the board, different tilts (±10–25°) and distances. Use MoveJ.
-
+### 3.2 Calibrate
 ```bash
 cd calib
-# 1) check the board is seen (Studio closed)
+# 1) Close Studio. At a few waypoints, check the board is detected:
 ./calib.sh python3 test_capture.py --settings settings/oneplus_3d.yml
-# 2) run; when "Ready for capture: False" is printed, press Play on the pendant
+#    -> "=> This pose can be used for calibration."
+
+# 2) Start the calibration:
 ./calib.sh python3 universal_robots_perform_hand_eye_calibration.py --eth --ip 192.168.163.11 \
     --settings settings/oneplus_3d.yml checkerboard
+#    When it prints "Ready for capture: False", press PLAY on the pendant.
 ```
-Output in `calib/datasets/<UTC date>/`: `handEyeTransform.yaml` (Zivid), `handEyeTransform_fallback.yaml`
-(OpenCV+3D), residuals, captures. Good residuals: < 1 mm, < 0.2°.
+The robot goes through the waypoints; the terminal prints `Capture image N` and the detection result for each.
+At the end it prints and saves the result in `calib/datasets/<date>/` (the folder name is in UTC):
 
-**Verify** on 3–5 new poses (robot moved by hand, board on flange, script only reads the pose):
+| File | Content |
+|---|---|
+| `handEyeTransform.yaml` | result of Zivid's calibration (poses where Zivid's detector found the board) |
+| `handEyeTransform_fallback.yaml` | result of the OpenCV+3D method (usually all poses) |
+| `residuals*.yaml` | error per pose. Good: under 1 mm and under 0.2° |
+| `img*.zdf`, `pos*.yaml` | captures and robot poses (to recompute later with `compute_from_dataset.py`) |
+
+Use the Zivid result if it used most of the poses; otherwise the fallback result. Section 3.3 decides.
+
+### 3.3 Test the calibration
+Board still on the flange. Move the robot with the pendant to a pose that was **not** a waypoint (the script only
+reads the robot pose, it never moves the robot), then:
 ```bash
-./calib.sh python3 verify_calibration.py pose datasets/<date> --settings settings/oneplus_3d.yml [--transform handEyeTransform_fallback.yaml]
-./calib.sh python3 verify_calibration.py touch datasets/<date> --settings settings/oneplus_3d.yml   # board on table, pointer tool
+./calib.sh python3 verify_calibration.py pose datasets/<date> --settings settings/oneplus_3d.yml
+./calib.sh python3 verify_calibration.py pose datasets/<date> --settings settings/oneplus_3d.yml \
+    --transform handEyeTransform_fallback.yaml          # to test the other result
 ```
-Mean error < 2 mm = good. Copy the chosen result to `calib/results/` and update `RESULT.md`.
+Repeat at 3–5 poses. It prints the distance between where the camera sees the board corners and where the
+calibration predicts them: **mean under 2 mm = GOOD** (this setup reached 0.3–0.55 mm), over 5 mm = recalibrate.
+
+Optional physical check, board flat on the table and a pointed tool on the robot:
+```bash
+./calib.sh python3 verify_calibration.py touch datasets/<date> --settings settings/oneplus_3d.yml
+```
+It prints four board corners in robot base coordinates; jog the tool tip to one and compare with the pendant.
+
+### 3.4 Keep the result
+Copy the chosen file to `calib/results/handEyeTransform_oneplus_<date>.yaml`, update `calib/results/RESULT.md`
+and the "Latest calibration" line above, then commit.
 
 ### Changes vs. the original Zivid UR sample (needed for SDK 2.11 / this setup)
 | Change | Why |
@@ -140,7 +193,7 @@ UR uses metres (divide by 1000). Details and limits: [`calib/results/RESULT.md`]
 | What | How | In git? |
 |---|---|---|
 | Code, Dockerfiles, settings, calibration results, pose files | this repository | yes |
-| Zivid .deb packages | `./download_packages.sh` | no (proprietary) |
+| Zivid .deb packages + Docker images | `./build.sh` (downloads and builds) | no (proprietary) |
 | Docker images (if no internet / exact same build) | `./export_images.sh` → copy `images/zivid-oneplus-images.tar.gz` (~1 GB) | no |
 | Raw captures `calib/datasets/*/img*.zdf` (~460 MB per dataset) | copy the folder (USB drive / network) | no |
 | Host setup (udev, dialout, network IP) | `sudo ./host/setup_host.sh` + network settings | — |

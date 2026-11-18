@@ -3,7 +3,7 @@
 # This folder is mounted as /work, so datasets/ and results are saved here on the host.
 #
 #   ./calib.sh python3 test_capture.py
-#   ./calib.sh python3 universal_robots_perform_hand_eye_calibration.py --eth --ip 192.168.15.10 checkerboard
+#   ./calib.sh python3 universal_robots_perform_hand_eye_calibration.py --eth --ip 192.168.163.11 --settings settings/oneplus_3d.yml checkerboard
 #   ./calib.sh bash
 set -e
 cd "$(dirname "$0")"
