@@ -1,0 +1,14 @@
+# Zivid SDK packages: proprietary + large -> fetched by download_packages.sh
+*.deb
+# Docker image exports
+images/
+*.tar.gz
+# Zivid captures (45 MB each). Calibration datasets keep their pose/result .yaml files in git.
+*.zdf
+# Python / OS junk
+__pycache__/
+*.pyc
+.DS_Store
+# Scratch files written by test_capture.py
+calib/suggested_settings.yml
+calib/oneplus.yml

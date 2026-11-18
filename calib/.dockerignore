@@ -1,0 +1,5 @@
+datasets/
+*.zdf
+__pycache__/
+settings/
+results/

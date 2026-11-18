@@ -1,0 +1,5 @@
+*.zdf
+calib/
+images/
+*.tar.gz
+.git/
