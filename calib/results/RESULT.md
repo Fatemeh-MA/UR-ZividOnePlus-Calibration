@@ -28,7 +28,7 @@ Camera origin in the robot base: x = 24.4, y = −476.2, z = 1381.8 mm (about 1.
 | New robot poses (live test, `verify_calibration.py pose`) | mean 0.32 / 0.34 / 0.55 mm, max ≤ 0.99 mm, ≤ 0.11° |
 | Agreement with the independent OpenCV+3D solution | 0.49 mm in camera position |
 
-Valid workspace: the calibration poses covered roughly x 240–450, y −380 to −265, z 30–370 mm (TCP in robot base).
+Valid workspace: the calibration poses covered roughly x 225–450, y −380 to −265, z 30–370 mm (TCP in robot base).
 Accuracy is best inside and near this region.
 
 ## When the calibration is no longer valid
