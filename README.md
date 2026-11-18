@@ -67,7 +67,7 @@ docker info | grep -i runtimes     # must list "nvidia"
 
 **Step 2: get this repository and prepare the host**
 ```bash
-git clone <this repo> zivid-oneplus && cd zivid-oneplus
+git clone https://github.com/Fatemeh-MA/UR-ZividOnePlus-Calibration.git zivid-oneplus && cd zivid-oneplus
 sudo ./host/setup_host.sh          # USB permissions + dialout group
 ```
 Log out and back in, then unplug and replug the camera.
