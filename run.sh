@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start the Zivid One+ (SDK 2.11.1) container with USB + GPU access.
-# Your home folder (/home/mindlab) is shared with the container at the same path,
-# so anything saved under /home/mindlab/... in Zivid Studio is saved on the laptop.
+# Your home folder is shared with the container at the same path,
+# so anything saved under your home folder in Zivid Studio is saved on the laptop.
 # Default save folder: ~/zivid_oneplus_data
 #
 # Usage: ./run.sh                   -> interactive shell

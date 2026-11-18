@@ -210,6 +210,7 @@ Keep the image export private: it contains the Zivid SDK.
 | Studio window does not open | `xhost +local:docker`, `DISPLAY` set |
 
 ## Credits / licenses
+- Full notices: [`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt).
 - `universal_robots_perform_hand_eye_calibration.py`, `save_load_matrix.py`: based on
   [Zivid python samples](https://github.com/zivid/zivid-python-samples) (BSD-3-Clause).
 - `3rdParty/rtde-2.3.6`: Universal Robots RTDE python client.

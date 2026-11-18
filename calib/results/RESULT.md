@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Camera | Zivid One+ M, serial 21386550, firmware 1.9.2, SDK 2.11.1 |
+| Camera | Zivid One+ M, firmware 1.9.2, SDK 2.11.1 |
 | Robot | Universal Robots e-series, Polyscope 5.13, IP 192.168.163.11 |
 | Setup | eye-to-hand: camera fixed above the cell, Zivid board ZVD-CB01 (7×8, 30 mm) on the robot flange |
 | Method | Zivid `calibrate_eye_to_hand`, 10 poses, camera settings `../settings/oneplus_3d.yml` |
